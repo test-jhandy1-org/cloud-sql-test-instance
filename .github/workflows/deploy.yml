@@ -1,0 +1,40 @@
+name: Create Cloud SQL Instance
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+
+    deploy:
+
+        name: Setup Gcloud Account
+        runs-on: ubuntu-latest
+        env:
+          REGION: europe-west2
+          PROJECT_ID: sunlit-theory-381720
+          VPC_NAME: default
+          VPC_CONNECTOR_NAME: default-connector
+          SQL_INSTANCE_NAME: 
+          IP_RANGE: 10.8.0.0/28
+
+        steps:
+        - name: Setup GCloud
+          uses: google-github-actions/setup-gcloud@v0
+          with:
+            project_id: ${{ env.PROJECT_ID }}
+            service_account_email: ${{ secrets.GCP_EMAIL }}
+            service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+
+        - name: Create VPC
+          run: gcloud compute networks create $VPC_NAME --subnet-mode=auto
+
+        - name: Create  Serverless VPC Access Connector
+          run: gcloud compute networks vpc-access connectors create $VPC_CONNECTOR_NAME --network $VPC_NAME --range $IP_RANGE --region $REGION --machine-type f1-micro
+
+        - name: Deploy CloudSQL Instance
+          run: gcloud sql instances create $SQL_INSTANCE_NAME --database-version=POSTGRES_13 --cpu=1 --memory=4GB --no-assign-ip --network=$VPC_NAME --region=$REGION
+
+        # Should auto-generate a set of credentials here really...
+        - name: Set CloudSQL Credentials
+          run: gcloud sql users set-password goland --host="%" --instance=$SQL_INSTANCE_NAME --password=goland
